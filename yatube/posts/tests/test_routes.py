@@ -16,7 +16,10 @@ class RoutesTest(TestCase):
             ["profile", [USERNAME], f"/profile/{USERNAME}/"],
             ["post_detail", [POST_ID], f"/posts/{POST_ID}/"],
             ["post_edit", [POST_ID], f"/posts/{POST_ID}/edit/"],
-            ["add_comment", [POST_ID], f"/posts/{POST_ID}/comment/"]
+            ["add_comment", [POST_ID], f"/posts/{POST_ID}/comment/"],
+            ["follow_index", [], "/follow/"],
+            ["profile_follow", [USERNAME], f"/profile/{USERNAME}/follow/"],
+            ["profile_unfollow", [USERNAME], f"/profile/{USERNAME}/unfollow/"],
         ]
 
         for route, arg, url in set:

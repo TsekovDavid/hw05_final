@@ -17,6 +17,10 @@ POST_CREATE_URL = reverse("posts:post_create")
 FOLLOW_REDIRECT_CREATE_TO_LOGIN = f"{LOGIN_URL}?next={POST_CREATE_URL}"
 PROFILE_URL = reverse("posts:profile", args=[AUTHOR_USERNAME])
 MISSING_PAGE_URL = ("/missing/")
+FOLLOW_INDEX_URL = reverse("posts:follow_index")
+PROFILE_FOLLOW_URL = reverse("posts:profile_follow", args=[AUTHOR_USERNAME])
+PROFILE_UNFOLLOW_URL = reverse(
+    "posts:profile_unfollow", args=[AUTHOR_USERNAME])
 
 
 class URLTests(TestCase):
@@ -62,11 +66,15 @@ class URLTests(TestCase):
             [self.POST_DETAIL_URL, 200, self.author, "author"],
             [POST_CREATE_URL, 200, self.author, "author"],
             [self.POST_EDIT_URL, 200, self.author, "author"],
+            [FOLLOW_INDEX_URL, 200, self.another, "another"],
             [POST_CREATE_URL, 302, self.guest, "guest"],
             [self.POST_EDIT_URL, 302, self.guest, "guest"],
             [self.POST_EDIT_URL, 302, self.another, "another"],
             [self.COMMENT, 302, self.guest, "guest"],
-            [MISSING_PAGE_URL, 404, self.guest, ""]
+            [PROFILE_UNFOLLOW_URL, 302, self.another, "another"],
+            [PROFILE_FOLLOW_URL, 302, self.another, "another"],
+            [FOLLOW_INDEX_URL, 302, self.guest, "guest"],
+            [MISSING_PAGE_URL, 404, self.guest, ""],
         ]
         for url, status_code, client, user in set:
             with self.subTest(url=url, client=user):
@@ -102,6 +110,7 @@ class URLTests(TestCase):
             POST_CREATE_URL: "posts/create_post.html",
             self.POST_EDIT_URL: "posts/create_post.html",
             MISSING_PAGE_URL: "core/404.html",
+            FOLLOW_INDEX_URL: "posts/follow.html",
         }
         for address, template in template_url_names.items():
             with self.subTest(address=address):

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 
-from posts.models import Group, Post, User, Comment
+from posts.models import Group, Post, User, Comment, Follow
 from yatube.settings import POSTS_ON_PAGE
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -31,6 +31,12 @@ SECOND_GROUP_LIST_URL = reverse("posts:group_list", args=[SECOND_SLUG])
 GROUP_LIST_URL = reverse("posts:group_list", args=[SLUG])
 INDEX_URL = reverse("posts:index")
 PROFILE_URL = reverse("posts:profile", args=[AUTHOR_USERNAME])
+FOLLOW_INDEX_URL = reverse("posts:follow_index")
+PROFILE_FOLLOW_URL = reverse("posts:profile_follow", args=[AUTHOR_USERNAME])
+ANOTHER_PROFILE_FOLLOW_URL = reverse(
+    "posts:profile_follow", args=[NOT_AUTHOR_USERNAME])
+PROFILE_UNFOLLOW_URL = reverse(
+    "posts:profile_unfollow", args=[AUTHOR_USERNAME])
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -75,6 +81,7 @@ class YatubeViewsTest(TestCase):
             author=cls.auth_user,
         )
         cls.POST_DETAIL_URL = reverse("posts:post_detail", args=[cls.post.id])
+        Follow.objects.create(user=cls.user, author=cls.auth_user)
 
     @classmethod
     def tearDownClass(cls):
@@ -108,7 +115,8 @@ class YatubeViewsTest(TestCase):
             INDEX_URL,
             GROUP_LIST_URL,
             self.POST_DETAIL_URL,
-            PROFILE_URL
+            PROFILE_URL,
+            FOLLOW_INDEX_URL
         ]
         for adress in adresses:
             with self.subTest(adress=adress):
@@ -143,6 +151,23 @@ class YatubeViewsTest(TestCase):
         self.assertEqual(page_content, self.guest.get(INDEX_URL).content)
         cache.clear()
         self.assertNotEqual(page_content, self.guest.get(INDEX_URL).content)
+
+    def test_subscribe(self):
+        """Пост появляется в ленте только у подписчиков."""
+        post = Post.objects.create(
+            author=self.user,
+            text=SECOND_TEXT)
+        self.author.get(ANOTHER_PROFILE_FOLLOW_URL)
+        self.assertEqual(post, self.author.get(
+            FOLLOW_INDEX_URL).context["page_obj"][0])
+        self.assertNotIn(post, self.another.get(
+            FOLLOW_INDEX_URL).context["page_obj"])
+
+    def test_unsubscribe(self):
+        """После отписки от автора, его посты не появляются в ленте."""
+        self.another.get(PROFILE_UNFOLLOW_URL)
+        self.assertNotIn(self.post, self.another.get(
+            FOLLOW_INDEX_URL).context["page_obj"])
 
 
 class PaginatorViewsTest(TestCase):
