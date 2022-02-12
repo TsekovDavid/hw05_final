@@ -5,7 +5,7 @@ from django.views.decorators.cache import cache_page
 
 from yatube.settings import POSTS_ON_PAGE
 from .forms import PostForm, CommentForm
-from .models import Group, Post, User
+from .models import Group, Post, User, Follow
 
 
 def paginator_view(request, post_list):
@@ -29,10 +29,14 @@ def group_posts(request, slug):
 
 
 def profile(request, username):
-    user = get_object_or_404(User, username=username)
+    author = get_object_or_404(User, username=username)
     return render(request, "posts/profile.html", {
-        "author": user,
-        "page_obj": paginator_view(request, user.posts.all()),
+        "author": author,
+        "page_obj": paginator_view(request, author.posts.all()),
+        "following": (request.user.is_authenticated and Follow.objects.filter(
+            author=author,
+            user=request.user
+        ).exists())
     })
 
 
@@ -41,7 +45,7 @@ def post_detail(request, post_id):
     return render(request, "posts/post_detail.html", {
         "post": post,
         "form": CommentForm(request.POST or None),
-        "comments": post.comments.all()
+        "comments": post.comments.all(),
     })
 
 
@@ -87,3 +91,30 @@ def add_comment(request, post_id):
         comment.post = post
         comment.save()
     return redirect('posts:post_detail', post_id=post_id)
+
+
+@login_required
+def follow_index(request):
+    user = request.user
+    authors = user.follower.all().values('author')
+    return render(request, "posts/follow.html", {
+        "page_obj": paginator_view(
+            request,
+            Post.objects.filter(author__in=authors))
+    })
+
+
+@login_required
+def profile_follow(request, username):
+    author = get_object_or_404(User, username=username)
+    if request.user != author:
+        Follow.objects.get_or_create(user=request.user, author=author)
+    return redirect('posts:profile', username=username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    user = request.user
+    author = get_object_or_404(User, username=username)
+    Follow.objects.filter(author=author, user=user).delete()
+    return redirect('posts:profile', username=author)

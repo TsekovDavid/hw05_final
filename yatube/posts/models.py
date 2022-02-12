@@ -64,7 +64,9 @@ class Comment(models.Model):
         verbose_name="Автор",
         related_name="comments",
     )
-    text = models.TextField(verbose_name="Текст коментария")
+    text = models.TextField(
+        verbose_name="Текст коментария",
+        blank=True)
     created = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Дата коментария",
@@ -72,3 +74,16 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        related_name='follower',
+        on_delete=models.CASCADE
+    )
+    author = models.ForeignKey(
+        User,
+        related_name='following',
+        on_delete=models.CASCADE,
+    )

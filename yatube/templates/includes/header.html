@@ -54,9 +54,8 @@
             </a>
           </li>
           <li>
-            Пользователь:
-            <a href="{% url 'posts:profile' user.username %}">
-              {{ user.username }}
+            <a class="nav-link link-dark" href="{% url 'posts:profile' user.username %} ">
+              Пользователь: {{ user.username }}
             </a>
           </li>
         {% else %}

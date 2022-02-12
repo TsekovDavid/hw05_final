@@ -133,12 +133,13 @@ class YatubeViewsTest(TestCase):
         self.assertNotIn(self.post, response.context["page_obj"])
 
     def test_cache_from_index_page(self):
-        page_content = self.guest.get(INDEX_URL).content
         Post.objects.create(
             text=POST_TEXT,
             group=self.group,
             author=self.user
         )
+        page_content = self.guest.get(INDEX_URL).content
+        Post.objects.all().delete()
         self.assertEqual(page_content, self.guest.get(INDEX_URL).content)
         cache.clear()
         self.assertNotEqual(page_content, self.guest.get(INDEX_URL).content)
