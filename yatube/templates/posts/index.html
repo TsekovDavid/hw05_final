@@ -3,7 +3,7 @@
 {% block title %}Последние обновления на сайте{% endblock %}
 {% block content %}
   <h1>Последние обновления на сайте</h1>
-  {% include 'posts/includes/switcher.html' %}
+  {% include 'posts/includes/switcher.html' with index=True %}
   {% for post in page_obj %}
     <ul>
       <li> Автор: 

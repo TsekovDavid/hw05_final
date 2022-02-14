@@ -163,7 +163,7 @@ class CommentFormTest(TestCase):
         comment = Comment.objects.all()[0]
         self.assertEqual(comment.text, form_data["text"])
         self.assertIn(comment, self.author.get(
-            self.POST_DETAIL_URL).context["comments"])
+            self.POST_DETAIL_URL).context["post"].comments.all())
 
     def test_form_add_comment(self):
         """Форма добавления комментария корректна."""

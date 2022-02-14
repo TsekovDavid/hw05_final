@@ -71,8 +71,8 @@ class URLTests(TestCase):
             [self.POST_EDIT_URL, 302, self.guest, "guest"],
             [self.POST_EDIT_URL, 302, self.another, "another"],
             [self.COMMENT, 302, self.guest, "guest"],
-            [PROFILE_UNFOLLOW_URL, 302, self.another, "another"],
             [PROFILE_FOLLOW_URL, 302, self.another, "another"],
+            [PROFILE_UNFOLLOW_URL, 302, self.another, "another"],
             [FOLLOW_INDEX_URL, 302, self.guest, "guest"],
             [MISSING_PAGE_URL, 404, self.guest, ""],
         ]

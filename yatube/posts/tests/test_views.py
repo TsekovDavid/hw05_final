@@ -123,9 +123,7 @@ class YatubeViewsTest(TestCase):
                 response = self.another.get(adress)
                 if adress == self.POST_DETAIL_URL:
                     post = response.context["post"]
-                    self.assertEqual(
-                        response.context["comments"][0],
-                        self.comment)
+                    self.assertIn(self.comment, post.comments.all())
                 else:
                     post = response.context["page_obj"][0]
                     self.assertEqual(len(response.context["page_obj"]), 1)
