@@ -1,6 +1,7 @@
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.core.cache import cache
+from django.contrib.auth import get_user
 
 from posts.models import Group, Post, User
 
@@ -18,9 +19,12 @@ FOLLOW_REDIRECT_CREATE_TO_LOGIN = f"{LOGIN_URL}?next={POST_CREATE_URL}"
 PROFILE_URL = reverse("posts:profile", args=[AUTHOR_USERNAME])
 MISSING_PAGE_URL = ("/missing/")
 FOLLOW_INDEX_URL = reverse("posts:follow_index")
+REDIRECT_FOLLOW_INDEX_TO_LOGIN = f"{LOGIN_URL}?next={FOLLOW_INDEX_URL}"
 PROFILE_FOLLOW_URL = reverse("posts:profile_follow", args=[AUTHOR_USERNAME])
+REDIRECT_FOLLOW_PROFILE_TO_LOGIN = f"{LOGIN_URL}?next={PROFILE_FOLLOW_URL}"
 PROFILE_UNFOLLOW_URL = reverse(
     "posts:profile_unfollow", args=[AUTHOR_USERNAME])
+REDIRECT_UNFOLLOW_PROFILE_TO_LOGIN = f"{LOGIN_URL}?next={PROFILE_UNFOLLOW_URL}"
 
 
 class URLTests(TestCase):
@@ -39,66 +43,70 @@ class URLTests(TestCase):
             text=POST_TEXT,
             group=cls.group,
         )
-        cls.COMMENT = reverse("posts:add_comment", args=[cls.post.id])
-        cls.FOLLOW_REDIRECT_COMMENT_TO_LOGIN = (
-            f"{LOGIN_URL}?next={cls.COMMENT}")
         cls.POST_DETAIL_URL = reverse("posts:post_detail", args=[cls.post.id])
         cls.POST_EDIT_URL = reverse("posts:post_edit", args=[cls.post.id])
         cls.FOLLOW_REDIRECT_EDIT_TO_LOGIN = (
             f"{LOGIN_URL}?next={cls.POST_EDIT_URL}")
+        cls.guest = Client()
+        cls.another = Client()
+        cls.author = Client()
 
     def setUp(self):
-        self.guest = Client()
-        self.another = Client()
         self.another.force_login(self.user)
-        self.author = Client()
         self.author.force_login(self.auth_user)
         cache.clear()
 
     def test_urls_exists_at_desired_locations(self):
         """Проверка доступности URL.
-        Сервер возращает ожидаемый HTTP status code.
+        Сервер возвращает ожидаемый HTTP status code.
         """
         set = [
-            [INDEX_URL, 200, self.author, "author"],
-            [GROUP_LIST_URL, 200, self.author, "author"],
-            [PROFILE_URL, 200, self.author, "author"],
-            [self.POST_DETAIL_URL, 200, self.author, "author"],
-            [POST_CREATE_URL, 200, self.author, "author"],
-            [self.POST_EDIT_URL, 200, self.author, "author"],
-            [FOLLOW_INDEX_URL, 200, self.another, "another"],
-            [POST_CREATE_URL, 302, self.guest, "guest"],
-            [self.POST_EDIT_URL, 302, self.guest, "guest"],
-            [self.POST_EDIT_URL, 302, self.another, "another"],
-            [self.COMMENT, 302, self.guest, "guest"],
-            [PROFILE_FOLLOW_URL, 302, self.another, "another"],
-            [PROFILE_UNFOLLOW_URL, 302, self.another, "another"],
-            [FOLLOW_INDEX_URL, 302, self.guest, "guest"],
-            [MISSING_PAGE_URL, 404, self.guest, ""],
+            [INDEX_URL, 200, self.author],
+            [GROUP_LIST_URL, 200, self.author],
+            [PROFILE_URL, 200, self.author],
+            [self.POST_DETAIL_URL, 200, self.author],
+            [POST_CREATE_URL, 200, self.author],
+            [self.POST_EDIT_URL, 200, self.author],
+            [FOLLOW_INDEX_URL, 200, self.another],
+            [POST_CREATE_URL, 302, self.guest],
+            [self.POST_EDIT_URL, 302, self.guest],
+            [self.POST_EDIT_URL, 302, self.another],
+            [PROFILE_FOLLOW_URL, 302, self.another],
+            [PROFILE_UNFOLLOW_URL, 302, self.another],
+            [FOLLOW_INDEX_URL, 302, self.guest],
+            [PROFILE_FOLLOW_URL, 302, self.guest],
+            [PROFILE_UNFOLLOW_URL, 302, self.guest],
+            [PROFILE_FOLLOW_URL, 302, self.author],
+            [PROFILE_UNFOLLOW_URL, 404, self.author],
+            [MISSING_PAGE_URL, 404, self.guest],
         ]
-        for url, status_code, client, user in set:
-            with self.subTest(url=url, client=user):
+        for url, status_code, client in set:
+            with self.subTest(url=url, client= get_user(client).username):
                 self.assertEqual(
                     client.get(url).status_code,
                     status_code)
 
     def test_redirect_to_login(self):
-        """Перенаправляет анонимного пользователя и не автора поста"""
         urls = [
             [self.guest, POST_CREATE_URL,
                 FOLLOW_REDIRECT_CREATE_TO_LOGIN],
-            [self.guest, self.COMMENT,
-                self.FOLLOW_REDIRECT_COMMENT_TO_LOGIN],
             [self.guest, self.POST_EDIT_URL,
                 self.FOLLOW_REDIRECT_EDIT_TO_LOGIN],
             [self.another, self.POST_EDIT_URL,
                 self.POST_DETAIL_URL],
+            [self.guest, FOLLOW_INDEX_URL,
+                REDIRECT_FOLLOW_INDEX_TO_LOGIN],
+            [self.guest, PROFILE_FOLLOW_URL,
+                REDIRECT_FOLLOW_PROFILE_TO_LOGIN],
+            [self.guest, PROFILE_UNFOLLOW_URL,
+                REDIRECT_UNFOLLOW_PROFILE_TO_LOGIN],
         ]
         for client, url, redirect_url in urls:
             with self.subTest(value=redirect_url):
                 self.assertRedirects(
                     client.get(url, follow=True),
                     redirect_url)
+                cache.clear()
 
     def test_urls_uses_correct_template(self):
         """URL-адреса используют соответствующие шаблоны."""
