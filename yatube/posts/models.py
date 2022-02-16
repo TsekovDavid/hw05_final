@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+IMAGE_DIRECTORY='posts/'
+
 User = get_user_model()
 
 
@@ -39,7 +41,7 @@ class Post(models.Model):
     )
     image = models.ImageField(
         'Картинка',
-        upload_to='posts/',
+        upload_to=IMAGE_DIRECTORY,
         blank=True
     )
 

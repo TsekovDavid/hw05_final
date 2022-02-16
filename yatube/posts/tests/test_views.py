@@ -37,6 +37,13 @@ ANOTHER_PROFILE_FOLLOW_URL = reverse(
     "posts:profile_follow", args=[NOT_AUTHOR_USERNAME])
 PROFILE_UNFOLLOW_URL = reverse(
     "posts:profile_unfollow", args=[AUTHOR_USERNAME])
+SMALL_GIF = (
+    b'\x47\x49\x46\x38\x39\x61\x02\x00'
+    b'\x01\x00\x80\x00\x00\x00\x00\x00'
+    b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+    b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+    b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+    b'\x0A\x00\x3B')
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -56,17 +63,9 @@ class YatubeViewsTest(TestCase):
             slug=SECOND_SLUG,
             description=SECOND_GGROUP_DESCRIPTION
         )
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
         cls.uploaded = SimpleUploadedFile(
             name='small.gif',
-            content=small_gif,
+            content=SMALL_GIF,
             content_type='image/gif'
         )
         cls.post = Post.objects.create(
@@ -82,6 +81,9 @@ class YatubeViewsTest(TestCase):
         )
         cls.POST_DETAIL_URL = reverse("posts:post_detail", args=[cls.post.id])
         Follow.objects.create(user=cls.user, author=cls.auth_user)
+        cls.guest = Client()
+        cls.another = Client()
+        cls.author = Client()
 
     @classmethod
     def tearDownClass(cls):
@@ -89,10 +91,7 @@ class YatubeViewsTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        self.guest = Client()
-        self.another = Client()
         self.another.force_login(self.user)
-        self.author = Client()
         self.author.force_login(self.auth_user)
         cache.clear()
 
@@ -111,6 +110,7 @@ class YatubeViewsTest(TestCase):
         self.assertEqual(group.slug, self.post.group.slug)
 
     def test_post_displayed_in_the_correct_pages(self):
+        """Пост отображается на коректных страницах."""
         adresses = [
             INDEX_URL,
             GROUP_LIST_URL,
@@ -123,49 +123,46 @@ class YatubeViewsTest(TestCase):
                 response = self.another.get(adress)
                 if adress == self.POST_DETAIL_URL:
                     post = response.context["post"]
-                    self.assertIn(self.comment, post.comments.all())
                 else:
-                    post = response.context["page_obj"][0]
                     self.assertEqual(len(response.context["page_obj"]), 1)
+                    post = response.context["page_obj"][0]
                 self.assertEqual(post.text, self.post.text)
                 self.assertEqual(post.group, self.post.group)
                 self.assertEqual(self.post.pk, post.pk)
                 self.assertEqual(self.post.author, post.author)
                 self.assertEqual(self.post.image, post.image)
 
-    def test_post_is_not_displayed_in_someone_elses_group(self):
-        """Пост не отображается в чужом сообществе."""
-        response = self.another.get(SECOND_GROUP_LIST_URL)
-        self.assertNotIn(self.post, response.context["page_obj"])
+    def test_comment_is_displayed_on_the_correct_page(self):
+        """Комментарии отображаются под корректными постами."""
+        self.assertIn(self.comment, self.another.get(
+            self.POST_DETAIL_URL).context["post"].comments.all())
+
+    def test_post_is_not_displayed_in_someone_elses_group_and_feed(self):
+        """Пост не отображается в чужих сообществе и ленте."""
+        urls = [
+            SECOND_GROUP_LIST_URL,
+            FOLLOW_INDEX_URL
+        ]
+        for url in urls:
+            response = self.author.get(url)
+            self.assertNotIn(self.post, response.context["page_obj"])
 
     def test_cache_from_index_page(self):
-        Post.objects.create(
-            text=POST_TEXT,
-            group=self.group,
-            author=self.user
-        )
         page_content = self.guest.get(INDEX_URL).content
         Post.objects.all().delete()
         self.assertEqual(page_content, self.guest.get(INDEX_URL).content)
         cache.clear()
         self.assertNotEqual(page_content, self.guest.get(INDEX_URL).content)
 
-    def test_subscribe(self):
-        """Пост появляется в ленте только у подписчиков."""
-        post = Post.objects.create(
-            author=self.user,
-            text=SECOND_TEXT)
-        self.author.get(ANOTHER_PROFILE_FOLLOW_URL)
-        self.assertEqual(post, self.author.get(
-            FOLLOW_INDEX_URL).context["page_obj"][0])
-        self.assertNotIn(post, self.another.get(
-            FOLLOW_INDEX_URL).context["page_obj"])
-
-    def test_unsubscribe(self):
-        """После отписки от автора, его посты не появляются в ленте."""
+    def test_subscribe_and_unsubscribe(self):
+        """Функции подписки и отписки работают правильно."""
+        Follow.objects.all().delete()
+        self.author.get(PROFILE_FOLLOW_URL)
+        self.assertEqual(Follow.objects.count(), 0)
+        self.another.get(PROFILE_FOLLOW_URL)
+        self.assertEqual(Follow.objects.count(), 1)
         self.another.get(PROFILE_UNFOLLOW_URL)
-        self.assertNotIn(self.post, self.another.get(
-            FOLLOW_INDEX_URL).context["page_obj"])
+        self.assertEqual(Follow.objects.count(), 0)
 
 
 class PaginatorViewsTest(TestCase):
@@ -182,9 +179,7 @@ class PaginatorViewsTest(TestCase):
         Post.objects.bulk_create(
             Post(author=cls.user, text=f"Текст {i}", group=cls.group)
             for i in range(cls.BATCH_SIZE))
-
-    def setUp(self):
-        self.guest_client = Client()
+        cls.guest_client = Client()
 
     def test_page_contains_the_correct_number_of_posts(self):
         """Паджинатор выводит правильное количество постов на страницу."""
