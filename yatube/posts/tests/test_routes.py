@@ -3,7 +3,6 @@ from django.urls import reverse
 
 from posts.urls import app_name
 
-
 SLUG = "testslug"
 USERNAME = "Abraham"
 POST_ID = 1

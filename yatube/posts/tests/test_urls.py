@@ -1,7 +1,7 @@
+from django.contrib.auth import get_user
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.core.cache import cache
-from django.contrib.auth import get_user
 
 from posts.models import Group, Post, User
 
@@ -81,12 +81,13 @@ class URLTests(TestCase):
             [MISSING_PAGE_URL, 404, self.guest],
         ]
         for url, status_code, client in set:
-            with self.subTest(url=url, client= get_user(client).username):
+            with self.subTest(url=url, client=get_user(client).username):
                 self.assertEqual(
                     client.get(url).status_code,
                     status_code)
 
     def test_redirect_to_login(self):
+
         urls = [
             [self.guest, POST_CREATE_URL,
                 FOLLOW_REDIRECT_CREATE_TO_LOGIN],
