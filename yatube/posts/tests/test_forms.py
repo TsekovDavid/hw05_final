@@ -196,4 +196,3 @@ class CommentFormTest(TestCase):
         self.assertIsInstance(self.author.get(
             self.POST_DETAIL_URL).context.get("form").fields.get("text"),
             forms.fields.CharField)
-
