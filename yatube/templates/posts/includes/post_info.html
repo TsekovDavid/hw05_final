@@ -1,5 +1,4 @@
 {% load thumbnail %}
-{% for post in page_obj %}
   <ul>
     <li> Автор: 
       <a href="{% url 'posts:profile' post.author.username %}">
@@ -22,5 +21,3 @@
   <a href="{% url 'posts:group_list' post.group.slug %}">#{{ post.group.title }}</a>
   {% endif %}
   <p><a href="{% url 'posts:post_detail' post.id %}">Подробная информация </a></p>
-  {% if not forloop.last %}<hr>{% endif %}
-{% endfor %} 
