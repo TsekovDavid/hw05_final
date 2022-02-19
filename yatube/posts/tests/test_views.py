@@ -210,7 +210,8 @@ class PaginatorViewsTest(TestCase):
             self.assertEqual(len(response.context["page_obj"]), posts_count)
 
     def test_second_page_contains_the_correct_number_of_posts(self):
-        """Паджинатор выводит правильное количество постов на вторую страницу."""
+        """Паджинатор выводит правильное количество постов на вторую страницу.
+        """
         POSTS_ON_PAGE_2 = self.BATCH_SIZE - POSTS_ON_PAGE
         set = [
             [INDEX_URL + "?page=2", POSTS_ON_PAGE_2],

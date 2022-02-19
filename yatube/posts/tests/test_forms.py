@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import IMAGE_DIRECTORY, Comment, Group, Post, User
+from posts.models import Comment, Group, Post, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -155,7 +155,8 @@ class PostFormTest(TestCase):
             "group": self.group.id,
             "image": uploaded
         }
-        response = self.guest.post(POST_CREATE_URL, data=form_data, follow=True)
+        response = self.guest.post(
+            POST_CREATE_URL, data=form_data, follow=True)
         self.assertRedirects(response, FOLLOW_REDIRECT_CREATE_TO_LOGIN)
         self.assertEqual(Post.objects.count(), 0)
 
