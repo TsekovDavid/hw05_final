@@ -84,6 +84,8 @@ class YatubeViewsTest(TestCase):
         cls.guest = Client()
         cls.another = Client()
         cls.author = Client()
+        cls.another.force_login(cls.user)
+        cls.author.force_login(cls.auth_user)
 
     @classmethod
     def tearDownClass(cls):
@@ -91,8 +93,6 @@ class YatubeViewsTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        self.another.force_login(self.user)
-        self.author.force_login(self.auth_user)
         cache.clear()
 
     def test_profile_page_show_correct_context(self):
@@ -134,8 +134,12 @@ class YatubeViewsTest(TestCase):
 
     def test_comment_is_displayed_on_the_correct_page(self):
         """Комментарии отображаются под корректными постами."""
-        self.assertIn(self.comment, self.another.get(
-            self.POST_DETAIL_URL).context["post"].comments.all())
+        self.assertEqual(Comment.objects.all().count(), 1)
+        comment = self.another.get(
+            self.POST_DETAIL_URL).context["post"].comments.all()[0]
+        self.assertEqual(comment.text, self.comment.text)
+        self.assertEqual(comment.author, self.comment.author)
+        self.assertEqual(comment.post, self.comment.post)
 
     def test_post_is_not_displayed_in_someone_elses_group_and_feed(self):
         """Пост не отображается в чужих сообществе и ленте."""
@@ -154,15 +158,27 @@ class YatubeViewsTest(TestCase):
         cache.clear()
         self.assertNotEqual(page_content, self.guest.get(INDEX_URL).content)
 
-    def test_subscribe_and_unsubscribe(self):
-        """Функции подписки и отписки работают правильно."""
+    def test_subscribe(self):
+        """Функция подписки работает правильно."""
+        Follow.objects.all().delete()
+        self.another.get(PROFILE_FOLLOW_URL)
+        self.assertTrue(Follow.objects.filter(
+            user=self.user, author=self.auth_user).exists())
+
+    def test_subscribe_to_yourself(self):
+        """Подписка на самого себя не работает."""
         Follow.objects.all().delete()
         self.author.get(PROFILE_FOLLOW_URL)
-        self.assertEqual(Follow.objects.count(), 0)
-        self.another.get(PROFILE_FOLLOW_URL)
-        self.assertEqual(Follow.objects.count(), 1)
+        self.assertFalse(Follow.objects.filter(
+            user=self.auth_user, author=self.auth_user).exists())
+
+    def test_subscribe_and_unsubscribe(self):
+        """Функция отписки работает правильно."""
+        Follow.objects.all().delete()
+        Follow.objects.create(user=self.user, author=self.auth_user)
         self.another.get(PROFILE_UNFOLLOW_URL)
-        self.assertEqual(Follow.objects.count(), 0)
+        self.assertFalse(Follow.objects.filter(
+            user=self.user, author=self.auth_user).exists())
 
 
 class PaginatorViewsTest(TestCase):
@@ -183,16 +199,24 @@ class PaginatorViewsTest(TestCase):
 
     def test_page_contains_the_correct_number_of_posts(self):
         """Паджинатор выводит правильное количество постов на страницу."""
-        POSTS_ON_PAGE_2 = self.BATCH_SIZE - POSTS_ON_PAGE
         set = [
             [INDEX_URL, POSTS_ON_PAGE],
             [PROFILE_URL, POSTS_ON_PAGE],
             [GROUP_LIST_URL, POSTS_ON_PAGE],
+        ]
+        for url, posts_count in set:
+            cache.clear()
+            response = self.guest_client.get(url)
+            self.assertEqual(len(response.context["page_obj"]), posts_count)
+
+    def test_second_page_contains_the_correct_number_of_posts(self):
+        """Паджинатор выводит правильное количество постов на вторую страницу."""
+        POSTS_ON_PAGE_2 = self.BATCH_SIZE - POSTS_ON_PAGE
+        set = [
             [INDEX_URL + "?page=2", POSTS_ON_PAGE_2],
             [PROFILE_URL + "?page=2", POSTS_ON_PAGE_2],
             [GROUP_LIST_URL + "?page=2", POSTS_ON_PAGE_2],
         ]
         for url, posts_count in set:
-            cache.clear()
             response = self.guest_client.get(url)
             self.assertEqual(len(response.context["page_obj"]), posts_count)

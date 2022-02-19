@@ -50,10 +50,10 @@ class URLTests(TestCase):
         cls.guest = Client()
         cls.another = Client()
         cls.author = Client()
+        cls.another.force_login(cls.user)
+        cls.author.force_login(cls.auth_user)
 
     def setUp(self):
-        self.another.force_login(self.user)
-        self.author.force_login(self.auth_user)
         cache.clear()
 
     def test_urls_exists_at_desired_locations(self):
@@ -89,18 +89,14 @@ class URLTests(TestCase):
     def test_redirect_to_login(self):
 
         urls = [
-            [self.guest, POST_CREATE_URL,
-                FOLLOW_REDIRECT_CREATE_TO_LOGIN],
+            [self.guest, POST_CREATE_URL, FOLLOW_REDIRECT_CREATE_TO_LOGIN],
             [self.guest, self.POST_EDIT_URL,
-                self.FOLLOW_REDIRECT_EDIT_TO_LOGIN],
-            [self.another, self.POST_EDIT_URL,
-                self.POST_DETAIL_URL],
-            [self.guest, FOLLOW_INDEX_URL,
-                REDIRECT_FOLLOW_INDEX_TO_LOGIN],
-            [self.guest, PROFILE_FOLLOW_URL,
-                REDIRECT_FOLLOW_PROFILE_TO_LOGIN],
+             self.FOLLOW_REDIRECT_EDIT_TO_LOGIN],
+            [self.another, self.POST_EDIT_URL, self.POST_DETAIL_URL],
+            [self.guest, FOLLOW_INDEX_URL, REDIRECT_FOLLOW_INDEX_TO_LOGIN],
+            [self.guest, PROFILE_FOLLOW_URL, REDIRECT_FOLLOW_PROFILE_TO_LOGIN],
             [self.guest, PROFILE_UNFOLLOW_URL,
-                REDIRECT_UNFOLLOW_PROFILE_TO_LOGIN],
+             REDIRECT_UNFOLLOW_PROFILE_TO_LOGIN],
         ]
         for client, url, redirect_url in urls:
             with self.subTest(value=redirect_url):
