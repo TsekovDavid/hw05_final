@@ -134,12 +134,12 @@ class YatubeViewsTest(TestCase):
 
     def test_comment_is_displayed_on_the_correct_page(self):
         """Комментарии отображаются под корректными постами."""
-        self.assertEqual(Comment.objects.all().count(), 1)
-        comment = self.another.get(
-            self.POST_DETAIL_URL).context["post"].comments.all()[0]
-        self.assertEqual(comment.text, self.comment.text)
-        self.assertEqual(comment.author, self.comment.author)
-        self.assertEqual(comment.post, self.comment.post)
+        comments = self.another.get(
+            self.POST_DETAIL_URL).context["post"].comments.all()
+        self.assertEqual(comments.count(), 1)
+        self.assertEqual(comments[0].text, self.comment.text)
+        self.assertEqual(comments[0].author, self.comment.author)
+        self.assertEqual(comments[0].post, self.comment.post)
 
     def test_post_is_not_displayed_in_someone_elses_group_and_feed(self):
         """Пост не отображается в чужих сообществе и ленте."""
@@ -199,25 +199,19 @@ class PaginatorViewsTest(TestCase):
 
     def test_page_contains_the_correct_number_of_posts(self):
         """Паджинатор выводит правильное количество постов на страницу."""
+        POSTS_ON_PAGE_2 = self.BATCH_SIZE - POSTS_ON_PAGE
         set = [
             [INDEX_URL, POSTS_ON_PAGE],
             [PROFILE_URL, POSTS_ON_PAGE],
             [GROUP_LIST_URL, POSTS_ON_PAGE],
-        ]
-        for url, posts_count in set:
-            cache.clear()
-            response = self.guest_client.get(url)
-            self.assertEqual(len(response.context["page_obj"]), posts_count)
-
-    def test_second_page_contains_the_correct_number_of_posts(self):
-        """Паджинатор выводит правильное количество постов на вторую страницу.
-        """
-        POSTS_ON_PAGE_2 = self.BATCH_SIZE - POSTS_ON_PAGE
-        set = [
             [INDEX_URL + "?page=2", POSTS_ON_PAGE_2],
             [PROFILE_URL + "?page=2", POSTS_ON_PAGE_2],
             [GROUP_LIST_URL + "?page=2", POSTS_ON_PAGE_2],
         ]
         for url, posts_count in set:
-            response = self.guest_client.get(url)
-            self.assertEqual(len(response.context["page_obj"]), posts_count)
+            with self.subTest(url=url):
+                if url == INDEX_URL:
+                    cache.clear()
+                response = self.guest_client.get(url)
+                self.assertEqual(
+                    len(response.context["page_obj"]), posts_count)

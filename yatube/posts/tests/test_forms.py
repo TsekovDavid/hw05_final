@@ -15,12 +15,14 @@ TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 AUTHOR_USERNAME = "Abraham"
 NOT_AUTHOR_USERNAME = "Isaak"
 POST_TEXT = "Тестовый текст"
+COMMENT_TEXT = "Текст нового коментария"
 GROUP_TITLE = "Тестовая группа"
 SLUG = "testslug"
 GROUP_DESCRIPTION = "Тестовое описание"
 SECOND_GROUP_TITLE = "Вторая тестовая группа"
 SECOND_SLUG = "new_group"
 SECOND_GROUP_DESCRIPTION = "Тестовое описание второй группы"
+COMMENT_FORM_DATA = {'text': COMMENT_TEXT}
 PROFILE_URL = reverse("posts:profile", args=[AUTHOR_USERNAME])
 POST_CREATE_URL = reverse("posts:post_create")
 LOGIN_URL = reverse("users:login")
@@ -97,10 +99,9 @@ class PostFormTest(TestCase):
                     self.POST_EDIT_URL, data=self.form_data, follow=True)
                 self.assertRedirects(response, redirect_url)
                 post = Post.objects.get(id=self.post.id)
-                self.assertNotEqual(post.text, self.form_data["text"])
-                self.assertNotEqual(post.group.id, self.form_data["group"])
-                picture_name = post.image.name.split('/')[1]
-                self.assertNotEqual(picture_name, self.form_data["image"].name)
+                self.assertEqual(post.text, self.post.text)
+                self.assertEqual(post.group, self.post.group)
+                self.assertEqual(post.image, self.post.image)
                 self.assertEqual(post.author, self.post.author)
 
     def test_post_edit(self):
@@ -109,7 +110,7 @@ class PostFormTest(TestCase):
         response = self.author.post(
             self.POST_EDIT_URL, data=self.form_data, follow=True)
         self.assertRedirects(response, self.POST_DETAIL_URL)
-        post = Post.objects.get(id=self.post.id)
+        post = self.author.get(self.POST_DETAIL_URL).context.get("post")
         self.assertEqual(post.text, self.form_data["text"])
         self.assertEqual(post.group.id, self.form_data["group"])
         self.assertEqual(post.author, self.post.author)
@@ -142,7 +143,7 @@ class PostFormTest(TestCase):
         picture_name = post.image.name.split('/')[1]
         self.assertEqual(picture_name, form_data["image"].name)
 
-    def test_create_post_by_anonym(self):
+    def test_create_post_from_anonym(self):
         """Анонимный пользователь не может создать пост."""
         Post.objects.all().delete()
         uploaded = SimpleUploadedFile(
@@ -194,6 +195,8 @@ class CommentFormTest(TestCase):
         )
         cls.POST_DETAIL_URL = reverse("posts:post_detail", args=[cls.post.id])
         cls.COMMENT_URL = reverse("posts:add_comment", args=[cls.post.id])
+        cls.FOLLOW_REDIRECT_COMMENT_TO_LOGIN = (
+            f"{LOGIN_URL}?next={cls.COMMENT_URL}")
         cls.guest = Client()
         cls.author = Client()
         cls.author.force_login(cls.auth_user)
@@ -203,21 +206,24 @@ class CommentFormTest(TestCase):
         super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
+    def test_create_comment_from_anonym(self):
+        """Анонимный пользователь не может написать комментарий к посту."""
+        Comment.objects.all().delete()
+        response = self.guest.post(
+            self.COMMENT_URL, data=COMMENT_FORM_DATA, follow=True)
+        self.assertRedirects(response, self.FOLLOW_REDIRECT_COMMENT_TO_LOGIN)
+        self.assertEqual(
+            Comment.objects.count(), 0)
+
     def test_valid_form_creates_comment(self):
         """Валидная форма добавляет комментарий к посту."""
         Comment.objects.all().delete()
-        form_data = {
-            'text': 'Текст комментария',
-        }
-        self.guest.post(self.COMMENT_URL, data=form_data, follow=True)
-        self.assertEqual(
-            Comment.objects.count(), 0,
-            "Анонимный пользователь добавил комментарий.")
         response = self.author.post(
-            self.COMMENT_URL, data=form_data, follow=True)
+            self.COMMENT_URL, data=COMMENT_FORM_DATA, follow=True)
         self.assertRedirects(response, self.POST_DETAIL_URL)
+        self.assertEqual(Comment.objects.count(), 1)
         comment = Comment.objects.all()[0]
-        self.assertEqual(comment.text, form_data["text"])
+        self.assertEqual(comment.text, COMMENT_FORM_DATA["text"])
         self.assertEqual(comment.author, self.auth_user)
         self.assertEqual(comment.post, self.post)
 
